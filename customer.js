@@ -29,6 +29,7 @@ function showProducts() {
 		for (var i=0;i<results.length;i++){
 			console.log("Item ID: "+results[i].item_id+", Product Name: "+results[i].product_name+", Department: "+results[i].department_name+", Price: "+results[i].price);
 		};
+		console.log("-------------------------------------------------");
 		
 		inquirer.prompt([
 		  {
@@ -55,29 +56,38 @@ function run(id,units) {
 	connection.query(query, function(err, results) {
 
 		if(err) throw err;
-
-		// function checkAndAdd(id) {
-		//     var found = results.some(function (el) {
-		//         return el.item_id === id;
-		//     });
-		//     if (!found) {
-		//     	console.log("ID not found! Please enter an existing ID from the given list.");
-		//     }
-		// }
 		
 		for (var i=0;i<results.length;i++){
 			if (results[i].item_id == id) {
 				var item = results[i].product_name;
+				var sales = results[i].product_sales;
 				var price = results[i].price;
+				var cost = results[i].cost;
+				var dept = results[i].department_name;
 				var unitsLeft = results[i].stock_quantity - units;
 				if (unitsLeft >= 0) {
 					console.log("---------------------------------------------------------------");
-					var query = "UPDATE products SET stock_quantity = "+unitsLeft+" WHERE item_id = "+id+";";
+					var query = "UPDATE products SET stock_quantity = "+unitsLeft+", product_sales = "+((price*units)+sales)+" WHERE item_id = "+id+";";
 					connection.query(query, function(err, results) {
 						if(err) throw err;
-						console.log("Congratulations! You purchased a "+item+" for $"+(price*units)+"!");
-						console.log("---------------------------------------------------------------");
-						showProducts();
+						var query = "SELECT * FROM departments";
+						connection.query(query, function(err, results) {
+							if(err) throw err;
+							for (var i=0;i<results.length;i++){
+								if (results[i].department_name == dept) {
+									var totalSales = parseInt(results[i].total_sales);
+									var totalCost = parseInt(results[i].over_head_costs);
+									var totalProfit = parseInt(results[i].total_profit);
+									var query = "UPDATE departments SET total_sales = "+(totalSales+(price*units))+", total_profit = "+((totalSales+(price*units))-totalCost)+" WHERE department_name = '"+dept+"';";
+									connection.query(query, function(err, results) {
+										if(err) throw err;
+										console.log("Congratulations! You purchased a "+item+" for $"+(price*units)+"!");
+										console.log("---------------------------------------------------------------");
+										showProducts();
+									});
+								}
+							}
+						});
 					});
 				}
 				else {
@@ -89,10 +99,4 @@ function run(id,units) {
 			}
 		};
 	});
-
-	// console.log("---------------------------------------------------------------");
-	// console.log("ID not found! Please enter an existing ID from the given list.");
-	// console.log("---------------------------------------------------------------");
-	// showProducts();
-
 };

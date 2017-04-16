@@ -60,7 +60,7 @@ function showProducts() {
 	connection.query(query, function(err, results) {
 		if(err) throw err;
 		for (var i=0;i<results.length;i++){
-			console.log("Item ID: "+results[i].item_id+", Product Name: "+results[i].product_name+", Department: "+results[i].department_name+", Price: "+results[i].price+", Quantity: "+results[i].stock_quantity);
+			console.log("Item ID: "+results[i].item_id+", Product Name: "+results[i].product_name+", Department: "+results[i].department_name+", Price: "+results[i].price+", Cost: "+results[i].cost+", Quantity: "+results[i].stock_quantity+", Total Sales: "+results[i].product_sales);
 		};
 		menu();
 	});
@@ -112,14 +112,30 @@ function addInv(id,units) {
 		for (var i=0;i<results.length;i++){
 			if (results[i].item_id == id) {
 				var item = results[i].product_name;
+				var dept = results[i].department_name;
+				var cost = results[i].cost;
 				var unitsAdded = parseInt(results[i].stock_quantity) + parseInt(units);
 				var query = "UPDATE products SET stock_quantity = "+unitsAdded+" WHERE item_id = "+id+";";
 				connection.query(query, function(err, results) {
 					if(err) throw err;
-					console.log("---------------------------------------------------------------");
-					console.log("You added "+units+" units to the "+item+" inventory.");
-					console.log("---------------------------------------------------------------");
-					menu();
+					var query = "SELECT * FROM departments";
+					connection.query(query, function(err, results) {
+						if(err) throw err;
+						for (var i=0;i<results.length;i++){
+							if (results[i].department_name == dept) {
+								var totalCost = parseInt(results[i].over_head_costs);
+								var totalProfit = parseInt(results[i].total_profit);
+								var totalSales = parseInt(results[i].total_sales);
+								var query = "UPDATE departments SET over_head_costs = "+(totalCost+(cost*units))+", total_profit = "+(totalSales-(totalCost+(cost*units)))+" WHERE department_name = '"+dept+"';";
+								connection.query(query, function(err, results) {
+									console.log("---------------------------------------------------------------");
+									console.log("You added "+units+" units to the "+item+" inventory.");
+									console.log("---------------------------------------------------------------");
+									menu();
+								});
+							}
+						}
+					});
 				});
 			}
 		};
@@ -137,23 +153,29 @@ function addProduct() {
 	  	message: "What is the name of the deptartment you wish to add it to?"
 	  }, {
 	  	name: "price",
-	  	message: "What is the price of the product you wish to add?"
+	  	message: "What is the selling price of the product you wish to add?"
+	  }, {
+	  	name: "cost",
+	  	message: "What is the cost of the product you wish to add?"
 	  }, {
 	  	name: "quantity",
 	  	message: "How many units of this product would you like to add?"
 	  }
 	]).then(function(answers) {
-		addProd(answers.name, answers.dept, answers.price, answers.quantity);
+		addProd(answers.name, answers.dept, answers.price, answers.cost, answers.quantity);
 	});
 };
 
-function addProd(name,dept,price,quantity) {
+function addProd(name,dept,price,cost,quantity) {
 
-	var query = "INSERT INTO products (product_name, department_name, price, stock_quantity) VALUES ('"+name+"', '"+dept+"', "+price+", "+quantity+");";
+	var query = "INSERT INTO products (product_name, department_name, price, cost, stock_quantity) VALUES ('"+name+"', '"+dept+"', "+price+", "+cost+", "+quantity+");";
 	connection.query(query, function(err, results) {
 		if(err) throw err;
-		console.log("You added "+name+" to the product list.");
-		menu();
+		var query = "INSERT INTO departments (department_name, over_head_costs, total_sales, total_profit) VALUES ('"+dept+"', "+(cost*quantity)+", 0, "+(-(cost*quantity))+");";
+		connection.query(query, function(err, results) {
+			if(err) throw err;
+			console.log("You added "+name+" to the product list.");
+			menu();
+		});
 	});
-	
 }
